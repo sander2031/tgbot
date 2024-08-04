@@ -466,6 +466,8 @@ def main():
     dp.add_handler(CommandHandler('get_ps', getPs))
     dp.add_handler(CommandHandler('get_ss', getSs))
     dp.add_handler(CommandHandler('get_services', getServices))
+    dp.add_handler(CommandHandler('get_emails', getEmails))
+    dp.add_handler(CommandHandler('get_phone_numbers', getPhoneNumbers))
 
 	# Регистрируем обработчик текстовых сообщений
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, start))

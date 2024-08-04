@@ -11,32 +11,36 @@ import time
 import re
 import platform
 import paramiko
+import sqlalchemy
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from dotenv import load_dotenv
 
-# Подключаем переменные из .env файла
+# Подключение переменных из .env файла.
 load_dotenv()
+
 TOKEN = os.getenv('TOKEN')
 host = os.getenv('RM_HOST')
 port = os.getenv('RM_PORT')
 username = os.getenv('RM_USER')
 password = os.getenv('RM_PASSWORD')
-
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 
-# Подключаем логирование
+# Подключение логирования.
 logging.basicConfig(
     filename='logfile.log', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
 )
+
+# Выключение логирования.
 #logging.disable(logging.CRITICAL)
 
 logging.debug('==== START ANOTHER T BOT ====')
-#logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-# Функция вывода доступных комманд
+
+## Функция вывода доступных комманд.
 def start(update: Update, context):
     user = update.effective_user
     update.message.reply_text(f'{user.full_name}, список доступных команд:\r\n\
@@ -59,24 +63,31 @@ def start(update: Update, context):
                               /get_apt_list - информация об установленных пакетах.\r\n\
                               /get_services - информация о запущенных сервисах\r\n')
 
-### Функции для обработки диалога с пользователем
-
+## Функции для обработки диалога с пользователем.
+# Функция поиска телефонных номеров в тексте.
 def findPhoneNumbersCommand(update: Update, context):
     update.message.reply_text('Введите текст для поиска телефонных номеров: ')
 
     return 'findPhoneNumbers'
 
+# Функция поиска почтовых адресов в тексте.
 def findEmailsCommand(update: Update, context):
     update.message.reply_text('Введите текст для поиска почтовых адресов: ')
 
     return 'findEmails'
 
+# Функция проверки надежности введенного пароля.
 def verifyPasswordCommand(update: Update, context):
     update.message.reply_text('Введите пароль: ')
 
     return 'verifyPassword'
 
-### Функция поиска телефонных номеров
+# Функция запроса уточнения о выводе списка пакетов.
+def getAptListCommand(update: Update, context):
+    update.message.reply_text('Вывод информации о всех пакетах? y / package_name')
+    return 'getAptList'
+
+# Функция поиска телефонных номеров.
 def findPhoneNumbers(update: Update, context):
     user_input = update.message.text # Получаем текст, содержащий(или нет) номера телефонов
 
@@ -85,7 +96,7 @@ def findPhoneNumbers(update: Update, context):
     phoneNumberList = phoneNumRegex.findall(user_input) # Ищем номера телефонов
 
     if not phoneNumberList: # Обрабатываем случай, когда номеров телефонов нет
-        update.message.reply_text('Телефонные номера не найдены 😢')
+        update.message.reply_text('Телефонные номера не найдены ������')
         return ConversationHandler.END # Завершаем выполнение функции
     
     phoneNumbers = '' # Создаем строку, в которую будем записывать номера телефонов
@@ -95,7 +106,7 @@ def findPhoneNumbers(update: Update, context):
     update.message.reply_text(phoneNumbers) # Отправляем сообщение пользователю
     return ConversationHandler.END # Завершаем работу обработчика диалога
 
-###  Функция поиска почтовых адресов
+#  Функция поиска почтовых адресов.
 def findEmails(update: Update, context):
     user_input = update.message.text # Получаем текст, содержащий(или нет) почтовые адреса
 
@@ -104,7 +115,7 @@ def findEmails(update: Update, context):
     emailsList = emailsRegex.findall(user_input) # Ищем почтовые адреса
 
     if not emailsList: # Обрабатываем случай, когда почтовых адресов нет
-        update.message.reply_text('Почтовые ящики не найдены 😢')
+        update.message.reply_text('Почтовые ящики не найдены ������')
         return ConversationHandler.END# Завершаем выполнение функции
     
     emails = '' # Создаем строку, в которую будем записывать почтовые адреса
@@ -114,23 +125,22 @@ def findEmails(update: Update, context):
     update.message.reply_text(emails) # Отправляем сообщение пользователю
     return ConversationHandler.END
 
-### Функция проверки надежности пароля
+# Функция проверки надежности пароля.
 def verifyPassword(update: Update, context):
     user_input = update.message.text # Введенный пароль
     passwordRegex =  re.compile(r'(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()])[A-Za-z\d!@#$%^&*()]{8,}')
     user_password = passwordRegex.findall(user_input) # Проверка на соответствие условиям
 
     if not user_password: # Обрабатываем случай, когда нет совпадений с регулярным выражением 
-        update.message.reply_text('Простой пароль 😢')
+        update.message.reply_text('Простой пароль ������')
         return ConversationHandler.END# Завершаем выполнение функции
 
         
-    update.message.reply_text("Сложный пароль 💪") # Отправляем сообщение пользователю, если введенный текст совпадает с регулярным выражением
+    update.message.reply_text("Сложный пароль ������") # Отправляем сообщение пользователю, если введенный текст совпадает с регулярным выражением
     return ConversationHandler.END    
 
-### Функции вывода системной информации
-# Функция получения релиза
-
+## Функции вывода системной информации.
+# Функция получения релиза.
 def getRelease(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
@@ -139,12 +149,13 @@ def getRelease(update: Update, context):
         time.sleep(1)
         release_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{release_data.decode()}')
+        update.message.reply_text(release_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect')     
         
     return
-   
+
+# Функция получения архитектуры процессора, имени хоста системы и версии ядра.    
 def getUname(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
@@ -153,12 +164,13 @@ def getUname(update: Update, context):
         time.sleep(1)
         uname_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{uname_data.decode()}')
+        update.message.reply_text(uname_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return
 
+# Функция получения информации о времени работы. linux системы.
 def getUptime(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
@@ -167,12 +179,13 @@ def getUptime(update: Update, context):
         time.sleep(1)
         uptime_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{uptime_data.decode()}')
+        update.message.reply_text(uptime_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return
 
+# Функция получения информации о файловой системе.
 def getDf(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
@@ -181,12 +194,13 @@ def getDf(update: Update, context):
         time.sleep(1)
         df_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{df_data.decode()}')
+        update.message.reply_text(df_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return
 
+# Функция получения информации о состоянии оперативной памяти.
 def getFree(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
@@ -195,12 +209,13 @@ def getFree(update: Update, context):
         time.sleep(1)
         free_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{free_data.decode()}')
+        update.message.reply_text(free_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return
 
+# Функция получения информации о производительности системы.
 def getMpstat(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
@@ -209,40 +224,43 @@ def getMpstat(update: Update, context):
         time.sleep(1)
         mpstat_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{mpstat_data.decode()}')
+        update.message.reply_text(mpstat_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return
 
+# Функция получения информации о активных пользователях в системе.
 def getW(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
         update.message.reply_text('Connect successfully to: '+host)
         stdin, stdout, stderr = client.exec_command('w')
         time.sleep(1)
-        release_data = stdout.read() + stderr.read()
+        w_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{release_data.decode()}')
+        update.message.reply_text(w_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return
 
+# Функция получения информации о последних 10 входах в систему.
 def getAuths(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
         update.message.reply_text('Connect successfully to: '+host)
         stdin, stdout, stderr = client.exec_command('last | head -n10')
         time.sleep(1)
-        release_data = stdout.read() + stderr.read()
+        auths_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{release_data.decode()}')
+        update.message.reply_text(auths_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return
 
+# Функция получения 5 критических событиях.
 def getCritical(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
@@ -251,78 +269,106 @@ def getCritical(update: Update, context):
         time.sleep(1)
         critical_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{critical_data.decode()}')
+        update.message.reply_text(critical_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return    
 
+# Функция получения информации о запущенных процессах.
 def getPs(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
         update.message.reply_text('Connect successfully to: '+host)
         stdin, stdout, stderr = client.exec_command('ps')
         time.sleep(3)
-        release_data = stdout.read() + stderr.read()
+        ps_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(f'{release_data.decode()}')
+        if len(ps_data) > 4096: # Проверка длины возвращаемого сообщения.
+            for x in range(0, len(ps_data), 4096):
+                update.message.reply_text(ps_data[x:x+4096].decode()) # Вывод сообщения блоками по 4096 символов.
+        else:
+            update.message.reply_text(ps_data.decode()) # Если сообщение <= 4096 - выводит его целиком.
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return    
 
+# Функция получения информации об используемых портах.
 def getSs(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
         update.message.reply_text('Connect successfully to: '+host)
         stdin, stdout, stderr = client.exec_command('ss -uat')
-        ps_data = stdout.read() + stderr.read()
+        ss_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(ps_data.decode())
+        if len(ss_data) > 4096: # Проверка длины возвращаемого сообщения.
+            for x in range(0, len(ss_data), 4096):
+                update.message.reply_text(ss_data[x:x+4096].decode()) # Вывод сообщения блоками по 4096 символов.
+        else:
+            update.message.reply_text(ss_data.decode()) # Если сообщение <= 4096 - выводит его целиком.
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return    
 
+# Функция получения информации об установленных пакетах или пакете.
 def getAptList(update: Update, context):
-    try:
-        client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
-        update.message.reply_text('Connect successfully to: '+host)
-        stdin, stdout, stderr = client.exec_command('apt list | head -n10') # Костыль на вывод 10 строк.
-        apt_data = stdout.read() + stderr.read()
-        logging.debug(apt_data.decode())
-        client.close()
-        update.message.reply_text(apt_data.decode())
-    except Exception:
-        update.message.reply_text('Failed to connect') 
-        
-    return    
+    if update.message.text == 'y':
+        try:
+            client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
+            update.message.reply_text('Connect successfully to: '+host)
+            stdin, stdout, stderr = client.exec_command('apt list') 
+            package_data = stdout.read() + stderr.read()
+            client.close()
+            if len(package_data) > 4096: # Проверка длины возвращаемого сообщения.
+                for x in range(0, len(package_data), 4096):
+                    update.message.reply_text(package_data[x:x+4096].decode()) # Вывод сообщения блоками по 4096 символов.
+                client.close()
+            else:
+                update.message.reply_text(package_data.decode())
+                client.close()
+        except Exception:
+            update.message.reply_text('Failed to connect') 
+        return ConversationHandler.END
+    else:
+        try:
+            client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
+            update.message.reply_text('Connect successfully to: '+host)
+            stdin, stdout, stderr = client.exec_command('dpkg -s '+update.message.text) 
+            package_data = stdout.read() + stderr.read()
+            client.close()
+            if len(package_data) > 4096: # Проверка длины возвращаемого сообщения.
+                for x in range(0, len(package_data), 4096):
+                    update.message.reply_text(package_data[x:x+4096].decode()) # Вывод сообщения блоками по 4096 символов.
+                client.close()
+            else:
+                update.message.reply_text(package_data.decode())
+                client.close()
+        except Exception:
+            update.message.reply_text('Failed to connect') 
+        return ConversationHandler.END       
 
+# Функция получения информации о запущенных сервисах.
 def getServices(update: Update, context):
     try:
         client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
         update.message.reply_text('Connect successfully to: '+host)
-#        update.message.reply_text('Вывести все пакеты? '+host)
-
-#        if update.message.text == 'y':
-        stdin, stdout, stderr = client.exec_command('systemctl --type=service|tail -n10') # Костыль на вывод 10 строк.
-        apt_list_data = stdout.read() + stderr.read()
+        stdin, stdout, stderr = client.exec_command('systemctl --type=service') 
+        service_list_data = stdout.read() + stderr.read()
         client.close()
-        update.message.reply_text(apt_list_data.decode())
-#        else:
-#            pkg = update.message.text
-#            stdin, stdout, stderr = client.exec_command('dpkg -l {pkg}')
-#            time.sleep(1)
-#            pkg_data = stdout.read() + stderr.read()
-#            client.close()
-#            update.message.reply_text(pkg_data.decode())
-
+        if len(service_list_data) > 4096: # Проверка длины возвращаемого сообщения.
+            for x in range(0, len(service_list_data), 4096):
+                update.message.reply_text(service_list_data[x:x+4096].decode()) # Вывод сообщения блоками по 4096 символов.
+        else:
+            update.message.reply_text(service_list_data.decode())
     except Exception:
         update.message.reply_text('Failed to connect') 
         
     return    
 
 
+# Основная функция
 def main():
     updater = Updater(TOKEN, use_context=True)
 
@@ -352,14 +398,22 @@ def main():
             'verifyPassword': [MessageHandler(Filters.text & ~Filters.command, verifyPassword)],
         },
         fallbacks=[]
-    )    
+    )
 
+    convHandlerGetAptList = ConversationHandler(
+        entry_points=[CommandHandler('get_apt_list', getAptListCommand)],
+        states={
+            'getAptList': [MessageHandler(Filters.text & ~Filters.command, getAptList)],
+        },
+        fallbacks=[]
+    )   
 
 	# Регистрируем обработчики команд
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(convHandlerFindPhoneNumbers)
     dp.add_handler(convHandlerFindEmails)
     dp.add_handler(convHandlerVerifyPassword)
+    dp.add_handler(convHandlerGetAptList)
     dp.add_handler(CommandHandler('get_release', getRelease))
     dp.add_handler(CommandHandler('get_uname', getUname))
     dp.add_handler(CommandHandler('get_uptime', getUptime))
@@ -371,7 +425,6 @@ def main():
     dp.add_handler(CommandHandler('get_critical', getCritical))
     dp.add_handler(CommandHandler('get_ps', getPs))
     dp.add_handler(CommandHandler('get_ss', getSs))
-    dp.add_handler(CommandHandler('get_apt_list', getAptList))
     dp.add_handler(CommandHandler('get_services', getServices))
 
 	# Регистрируем обработчик текстовых сообщений
@@ -386,3 +439,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

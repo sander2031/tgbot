@@ -11,7 +11,7 @@ import time
 import re
 import platform
 import paramiko
-import sqlalchemy
+import psycopg2
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from dotenv import load_dotenv
@@ -24,6 +24,11 @@ host = os.getenv('RM_HOST')
 port = os.getenv('RM_PORT')
 username = os.getenv('RM_USER')
 password = os.getenv('RM_PASSWORD')
+db_host = os.getenv('DB_HOST')
+db_port = os.getenv('DB_PORT')
+db_username = os.getenv('DB_USER')
+db_password = os.getenv('DB_PASSWORD')
+db_database = os.getenv('DB_DATABASE')
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -44,24 +49,27 @@ logger = logging.getLogger(__name__)
 def start(update: Update, context):
     user = update.effective_user
     update.message.reply_text(f'{user.full_name}, список доступных команд:\r\n\
-                              /verify_password - проверка надежности пароля\r\n\
+                              /verify_password - проверка надежности пароля.\r\n\
                               ==== Поиск информации в тексте ====\r\n\
-                              /find_email - поиск почтовых адресов в тексте\r\n\
-                              /find_phone_number - поиск телефонных номеров в тексте\r\n\
+                              /find_email - поиск почтовых адресов в тексте.\r\n\
+                              /find_phone_number - поиск телефонных номеров в тексте.\r\n\
                               ====  Мониторинг Linux-системы ====\r\n\
-                              /get_release - релиз\r\n\
-                              /get_uname - имя хоста, архитектура процессора, версия ядра\r\n\
-                              /get_uptime - время работы хоста\r\n\
+                              /get_release - релиз.\r\n\
+                              /get_uname - имя хоста, архитектура процессора, версия ядра.\r\n\
+                              /get_uptime - время работы хоста.\r\n\
                               /get_df - информация о состоянии файловой системы\r\n\
                               /get_free - информация о состоянии оперативной памяти.\r\n\
-                              /get_mpstat - информация о производительности системы\r\n\
+                              /get_mpstat - информация о производительности системы.\r\n\
                               /get_w - информация о работающих в данной системе пользователях.\r\n\
                               /get_auths - последние 10 входов в систему.\r\n\
-                              /get_critical - последние 5 критических событий\r\n\
-                              /get_ps - Информация о запущенных процессах.\r\n\
-                              /get_ss - информация об используемых портах\r\n\
+                              /get_critical - последние 5 критических событий.\r\n\
+                              /get_ps - информация о запущенных процессах.\r\n\
+                              /get_ss - информация об используемых портах.\r\n\
                               /get_apt_list - информация об установленных пакетах.\r\n\
-                              /get_services - информация о запущенных сервисах\r\n')
+                              /get_services - информация о запущенных сервисах.\r\n\
+                              ==== Функции получения данных из базы ====\r\n\
+                              /get_emails - получение сохраненных почтовых адресов.\r\n\
+                              /get_phone_numbers - получение сохраненных телефонных номеров.')
 
 ## Функции для обработки диалога с пользователем.
 # Функция поиска телефонных номеров в тексте.
@@ -366,6 +374,38 @@ def getServices(update: Update, context):
         update.message.reply_text('Failed to connect') 
         
     return    
+
+## Функции работы с базой данных
+# Функция получения почтовых адресов
+def getEmails(update: Update, context):
+    try:
+        db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
+        cursor = db_connection.cursor()
+        cursor.execute("SELECT * FROM emails")
+        emails_data = cursor.fetchall()
+        for row in emails_data:
+            update.message.reply_text(row)
+        cursor.close()
+        db_connection.close()
+    except Exception:
+        update.message.reply_text('Failed DB connect')
+
+    return
+# Функция получения телефонных номеров
+def getPhoneNumbers(update: Update, context):
+    try:
+        db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
+        cursor = db_connection.cursor()
+        cursor.execute("SELECT * FROM phone_numbers")
+        phone_numbers_data = cursor.fetchall()
+        for row in phone_numbers_data:
+            update.message.reply_text(row)
+        cursor.close()
+        db_connection.close()
+    except Exception:
+        update.message.reply_text('Failed DB connect')
+
+    return
 
 
 # Основная функция

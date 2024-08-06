@@ -8,13 +8,15 @@
 import os
 import logging
 import time
+import datetime
 import re
 import platform
 import paramiko
-import sqlalchemy
+import psycopg2
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from dotenv import load_dotenv
+
 
 # Подключение переменных из .env файла.
 load_dotenv()
@@ -24,6 +26,11 @@ host = os.getenv('RM_HOST')
 port = os.getenv('RM_PORT')
 username = os.getenv('RM_USER')
 password = os.getenv('RM_PASSWORD')
+db_host = os.getenv('DB_HOST')
+db_port = os.getenv('DB_PORT')
+db_username = os.getenv('DB_USER')
+db_password = os.getenv('DB_PASSWORD')
+db_database = os.getenv('DB_DATABASE')
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -61,7 +68,11 @@ def start(update: Update, context):
                               /get_ps - Информация о запущенных процессах.\r\n\
                               /get_ss - информация об используемых портах\r\n\
                               /get_apt_list - информация об установленных пакетах.\r\n\
-                              /get_services - информация о запущенных сервисах\r\n')
+                              /get_services - информация о запущенных сервисах.\r\n\
+                              ==== Функции получения данных из базы ====\r\n\
+                              /get_emails - получение сохраненных почтовых адресов.\r\n\
+                              /get_phone_numbers - получение сохраненных.\r\n\
+                              /get_repl_logs - получение информации о репликации.')
 
 ## Функции для обработки диалога с пользователем.
 # Функция поиска телефонных номеров в тексте.
@@ -89,55 +100,61 @@ def getAptListCommand(update: Update, context):
 
 # Функция поиска телефонных номеров.
 def findPhoneNumbers(update: Update, context):
-    user_input = update.message.text # Получаем текст, содержащий(или нет) номера телефонов
+    user_input = update.message.text # Получаем текст, содержащий(или нет) номера телефонов.
 
     phoneNumRegex = re.compile(r'(8\d{10}|8\(\d{3}\)\d{7}|8\ \(\d{3}\)\ \d{3}\ \d{2}\ \d{2}|8\ \d{3}\ \d{3}\ \d{2}\ \d{2}|8\-\d{3}\-\d{3}\-\d{2}\-\d{2}|\+7\d{10}|\+7\(\d{3}\)\d{7}|\+7\ \(\d{3}\)\ \d{3}\ \d{2}\ \d{2}|\+7\ \d{3}\ \d{3}\ \d{2}\ \d{2}|\+7\-\d{3}\-\d{3}\-\d{2}\-\d{2})') # Стоит учесть различные варианты записи номеров телефона. 8XXXXXXXXXX, 8(XXX)XXXXXXX, 8 XXX XXX XX XX, 8 (XXX) XXX XX XX, 8-XXX-XXX-XX-XX. Также вместо ‘8’ на первом месте может быть ‘+7’.
 
-    phoneNumberList = phoneNumRegex.findall(user_input) # Ищем номера телефонов
+    phoneNumberList = phoneNumRegex.findall(user_input) # Ищем номера телефонов.
 
-    if not phoneNumberList: # Обрабатываем случай, когда номеров телефонов нет
+    if not phoneNumberList: # Обрабатываем случай, когда номеров телефонов нет.
         update.message.reply_text('Телефонные номера не найдены ������')
-        return ConversationHandler.END # Завершаем выполнение функции
+        return ConversationHandler.END # Завершаем выполнение функции.
     
-    phoneNumbers = '' # Создаем строку, в которую будем записывать номера телефонов
+    global phoneNumbers # Глобальная переменная, чтобы дотянуться до нее из другой функции.
+    phoneNumbers = '' # Создаем строку, в которую будем записывать номера телефонов.
     for i in range(len(phoneNumberList)):
-        phoneNumbers += f'{i+1}. {phoneNumberList[i]}\n' # Записываем очередной номер
+        phoneNumbers += f'{phoneNumberList[i]},' # Записываем очередной номер.
         
-    update.message.reply_text(phoneNumbers) # Отправляем сообщение пользователю
-    return ConversationHandler.END # Завершаем работу обработчика диалога
+    update.message.reply_text(phoneNumbers) # Отправляем сообщение пользователю.
+    update.message.reply_text('Записать найденные телефонные номера в базу? ( y )')
+    
+    return 'writePhoneNumbers'  # Переходим в функцию записи.
 
 #  Функция поиска почтовых адресов.
 def findEmails(update: Update, context):
-    user_input = update.message.text # Получаем текст, содержащий(или нет) почтовые адреса
+    user_input = update.message.text # Получаем текст, содержащий(или нет) почтовые адреса.
 
     emailsRegex = re.compile(r'[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+') # Регулярное выражение для поска почтовых адресов.
 
-    emailsList = emailsRegex.findall(user_input) # Ищем почтовые адреса
+    emailsList = emailsRegex.findall(user_input) # Ищем почтовые адреса.
 
-    if not emailsList: # Обрабатываем случай, когда почтовых адресов нет
+    if not emailsList: # Обрабатываем случай, когда почтовых адресов нет.
         update.message.reply_text('Почтовые ящики не найдены ������')
-        return ConversationHandler.END# Завершаем выполнение функции
-    
-    emails = '' # Создаем строку, в которую будем записывать почтовые адреса
+        return ConversationHandler.END # Завершаем выполнение функции.
+    global emails # Глобальная переменная, чтобы дотянуться до нее из другой функции. 
+    emails = '' # Создаем строку, в которую будем записывать почтовые адреса.
+
     for i in range(len(emailsList)):
-        emails += f'{i+1}. {emailsList[i]}\n' # Записываем очередной почтовый адрес
+        emails += f'{emailsList[i]} ' # Записываем очередной почтовый адрес.
         
-    update.message.reply_text(emails) # Отправляем сообщение пользователю
-    return ConversationHandler.END
+    update.message.reply_text(emails) # Отправляем сообщение пользователю.
+    update.message.reply_text('Записать найденные почтовые ящики? ( y )')
+
+    return 'writeEmails' # Переходим в функцию записи.
 
 # Функция проверки надежности пароля.
 def verifyPassword(update: Update, context):
-    user_input = update.message.text # Введенный пароль
+    user_input = update.message.text # Введенный пароль.
     passwordRegex =  re.compile(r'(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()])[A-Za-z\d!@#$%^&*()]{8,}')
-    user_password = passwordRegex.findall(user_input) # Проверка на соответствие условиям
+    user_password = passwordRegex.findall(user_input) # Проверка на соответствие условиям.
 
-    if not user_password: # Обрабатываем случай, когда нет совпадений с регулярным выражением 
+    if not user_password: # Обрабатываем случай, когда нет совпадений с регулярным выражением.
         update.message.reply_text('Простой пароль ������')
-        return ConversationHandler.END# Завершаем выполнение функции
+        return ConversationHandler.END # Завершаем выполнение функции.
 
         
-    update.message.reply_text("Сложный пароль ������") # Отправляем сообщение пользователю, если введенный текст совпадает с регулярным выражением
-    return ConversationHandler.END    
+    update.message.reply_text("Сложный пароль ������") # Отправляем сообщение пользователю, если введенный текст совпадает с регулярным выражением.
+    return ConversationHandler.END # Завершаем выполнение функции.   
 
 ## Функции вывода системной информации.
 # Функция получения релиза.
@@ -367,6 +384,104 @@ def getServices(update: Update, context):
         
     return    
 
+# Функции работы с базой данных.
+# Функция получения почтовых адресов.
+def getEmails(update: Update, context):
+    try:
+        db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
+        cursor = db_connection.cursor()
+        cursor.execute("SELECT * FROM emails")
+        emails_data = cursor.fetchall()
+        for row in emails_data:
+            update.message.reply_text(row)
+        cursor.close()
+        db_connection.close()
+    except Exception:
+        update.message.reply_text('Failed DB connect')
+
+    return
+
+# Функция получения телефонных номеров.
+def getPhoneNumbers(update: Update, context):
+    try:
+        db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
+        cursor = db_connection.cursor()
+        cursor.execute("SELECT * FROM phone_numbers")
+        phone_numbers_data = cursor.fetchall()
+        for row in phone_numbers_data:
+            update.message.reply_text(row)
+        cursor.close()
+        db_connection.close()
+    except Exception:
+        update.message.reply_text('Failed DB connect')
+
+    return
+
+# Функция записи найденных почтовых адресов.
+def writeEmails(update: Update, context):    
+    user_input = update.message.text
+    if user_input == 'y':
+        try:
+            add_time = str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            request_to_insert = "INSERT INTO emails (email, insert_time) VALUES ( %s, %s)"
+            db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
+            db_cursor = db_connection.cursor()
+            mails_list = list(emails.split(" "))
+            for row in mails_list:
+                db_cursor.execute(request_to_insert, (row, add_time))
+            db_connection.commit()
+            db_cursor.close()
+            db_connection.close()
+            update.message.reply_text('Успешно записано в базу.')
+            return ConversationHandler.END
+        except Exception:
+            update.message.reply_text('Ошибка подключения к базе.')
+            return ConversationHandler.END
+    else:
+        update.message.reply_text('Ничего не записано в базу.')
+        return ConversationHandler.END    
+    
+# Функция записи найденных телефонных номеров.
+def writePhoneNumbers(update: Update, context):    
+    user_input = update.message.text
+    if user_input == 'y':
+        try:
+            add_time = str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            request_to_insert = "INSERT INTO phone_numbers (phone, insert_time) VALUES ( %s, %s)"
+            db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
+            db_cursor = db_connection.cursor()
+            phone_numbers_list = list(phoneNumbers.split(","))
+            for row in phone_numbers_list:
+                db_cursor.execute(request_to_insert, (row, add_time))
+            db_connection.commit()
+            db_cursor.close()
+            db_connection.close()
+            update.message.reply_text('Успешно записано в базу.')
+            return ConversationHandler.END
+        except Exception:
+            update.message.reply_text('Ошибка подключения к базе.')
+            return ConversationHandler.END
+    else:
+        update.message.reply_text('Ничего не записано в базу.')
+        return ConversationHandler.END
+
+# Функция получения информации о репликации.
+def getReplLogs(update: Update, context):
+    try:
+        client.connect(hostname=host, username=username, password=password, port=port, look_for_keys=False, allow_agent=False)
+        update.message.reply_text('Connect successfully to: '+host)
+        stdin, stdout, stderr = client.exec_command('cat /var/log/postgresql/postgresql-14-main.log |grep repl_user') 
+        logs_data = stdout.read() + stderr.read()
+        client.close()
+        if len(logs_data) > 4096: # Проверка длины возвращаемого сообщения.
+            for x in range(0, len(logs_data), 4096):
+                update.message.reply_text(logs_data[x:x+4096].decode()) # Вывод сообщения блоками по 4096 символов.
+        else:
+            update.message.reply_text(logs_data.decode())
+    except Exception:
+        update.message.reply_text('Failed to connect') 
+        
+    return  
 
 # Основная функция
 def main():
@@ -380,6 +495,7 @@ def main():
         entry_points=[CommandHandler('find_phone_number', findPhoneNumbersCommand)],
         states={
             'findPhoneNumbers': [MessageHandler(Filters.text & ~Filters.command, findPhoneNumbers)],
+            'writePhoneNumbers': [MessageHandler(Filters.text & ~Filters.command, writePhoneNumbers)]
         },
         fallbacks=[]
     )
@@ -388,6 +504,7 @@ def main():
         entry_points=[CommandHandler('find_email', findEmailsCommand)],
         states={
             'findEmails': [MessageHandler(Filters.text & ~Filters.command, findEmails)],
+            'writeEmails': [MessageHandler(Filters.text & ~Filters.command, writeEmails)]            
         },
         fallbacks=[]
     )
@@ -410,10 +527,6 @@ def main():
 
 	# Регистрируем обработчики команд
     dp.add_handler(CommandHandler('start', start))
-    dp.add_handler(convHandlerFindPhoneNumbers)
-    dp.add_handler(convHandlerFindEmails)
-    dp.add_handler(convHandlerVerifyPassword)
-    dp.add_handler(convHandlerGetAptList)
     dp.add_handler(CommandHandler('get_release', getRelease))
     dp.add_handler(CommandHandler('get_uname', getUname))
     dp.add_handler(CommandHandler('get_uptime', getUptime))
@@ -426,6 +539,14 @@ def main():
     dp.add_handler(CommandHandler('get_ps', getPs))
     dp.add_handler(CommandHandler('get_ss', getSs))
     dp.add_handler(CommandHandler('get_services', getServices))
+    dp.add_handler(CommandHandler('get_emails', getEmails))
+    dp.add_handler(CommandHandler('get_phone_numbers', getPhoneNumbers))
+    dp.add_handler(CommandHandler('get_repl_logs', getReplLogs))
+    dp.add_handler(convHandlerFindPhoneNumbers)
+    dp.add_handler(convHandlerFindEmails)
+    dp.add_handler(convHandlerVerifyPassword)
+    dp.add_handler(convHandlerGetAptList)
+ 
 
 	# Регистрируем обработчик текстовых сообщений
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, start))

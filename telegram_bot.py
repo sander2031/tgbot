@@ -390,7 +390,7 @@ def getEmails(update: Update, context):
     try:
         db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
         cursor = db_connection.cursor()
-        cursor.execute("SELECT * FROM emails")
+        cursor.execute("SELECT email FROM emails")
         emails_data = cursor.fetchall()
         for row in emails_data:
             update.message.reply_text(row)
@@ -406,7 +406,7 @@ def getPhoneNumbers(update: Update, context):
     try:
         db_connection = psycopg2.connect(user=db_username, password=db_password, host=db_host, port=db_port, database=db_database)
         cursor = db_connection.cursor()
-        cursor.execute("SELECT * FROM phone_numbers")
+        cursor.execute("SELECT phone FROM phone_numbers")
         phone_numbers_data = cursor.fetchall()
         for row in phone_numbers_data:
             update.message.reply_text(row)

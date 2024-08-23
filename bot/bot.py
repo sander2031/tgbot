@@ -107,7 +107,7 @@ def findPhoneNumbers(update: Update, context):
     phoneNumberList = phoneNumRegex.findall(user_input) # Ищем номера телефонов.
 
     if not phoneNumberList: # Обрабатываем случай, когда номеров телефонов нет.
-        update.message.reply_text('Телефонные номера не найдены ������')
+        update.message.reply_text('Телефонные номера не найдены.')
         return ConversationHandler.END # Завершаем выполнение функции.
     
     global phoneNumbers # Глобальная переменная, чтобы дотянуться до нее из другой функции.
@@ -129,7 +129,7 @@ def findEmails(update: Update, context):
     emailsList = emailsRegex.findall(user_input) # Ищем почтовые адреса.
 
     if not emailsList: # Обрабатываем случай, когда почтовых адресов нет.
-        update.message.reply_text('Почтовые ящики не найдены ������')
+        update.message.reply_text('Почтовые ящики не найдены.')
         return ConversationHandler.END # Завершаем выполнение функции.
     global emails # Глобальная переменная, чтобы дотянуться до нее из другой функции. 
     emails = '' # Создаем строку, в которую будем записывать почтовые адреса.
@@ -149,11 +149,11 @@ def verifyPassword(update: Update, context):
     user_password = passwordRegex.findall(user_input) # Проверка на соответствие условиям.
 
     if not user_password: # Обрабатываем случай, когда нет совпадений с регулярным выражением.
-        update.message.reply_text('Простой пароль ������')
+        update.message.reply_text('Простой пароль.')
         return ConversationHandler.END # Завершаем выполнение функции.
 
         
-    update.message.reply_text("Сложный пароль ������") # Отправляем сообщение пользователю, если введенный текст совпадает с регулярным выражением.
+    update.message.reply_text("Сложный пароль.") # Отправляем сообщение пользователю, если введенный текст совпадает с регулярным выражением.
     return ConversationHandler.END # Завершаем выполнение функции.   
 
 ## Функции вывода системной информации.
@@ -168,7 +168,7 @@ def getRelease(update: Update, context):
         client.close()
         update.message.reply_text(release_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect')     
+        update.message.reply_text('Failed to connect.')     
         
     return
 
@@ -183,7 +183,7 @@ def getUname(update: Update, context):
         client.close()
         update.message.reply_text(uname_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return
 
@@ -198,7 +198,7 @@ def getUptime(update: Update, context):
         client.close()
         update.message.reply_text(uptime_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return
 
@@ -213,7 +213,7 @@ def getDf(update: Update, context):
         client.close()
         update.message.reply_text(df_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return
 
@@ -228,7 +228,7 @@ def getFree(update: Update, context):
         client.close()
         update.message.reply_text(free_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return
 
@@ -243,7 +243,7 @@ def getMpstat(update: Update, context):
         client.close()
         update.message.reply_text(mpstat_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return
 
@@ -258,7 +258,7 @@ def getW(update: Update, context):
         client.close()
         update.message.reply_text(w_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return
 
@@ -273,7 +273,7 @@ def getAuths(update: Update, context):
         client.close()
         update.message.reply_text(auths_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return
 
@@ -288,7 +288,7 @@ def getCritical(update: Update, context):
         client.close()
         update.message.reply_text(critical_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return    
 
@@ -307,7 +307,7 @@ def getPs(update: Update, context):
         else:
             update.message.reply_text(ps_data.decode()) # Если сообщение <= 4096 - выводит его целиком.
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return    
 
@@ -325,7 +325,7 @@ def getSs(update: Update, context):
         else:
             update.message.reply_text(ss_data.decode()) # Если сообщение <= 4096 - выводит его целиком.
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return    
 
@@ -346,7 +346,7 @@ def getAptList(update: Update, context):
                 update.message.reply_text(package_data.decode())
                 client.close()
         except Exception:
-            update.message.reply_text('Failed to connect') 
+            update.message.reply_text('Failed to connect.') 
         return ConversationHandler.END
     else:
         try:
@@ -363,7 +363,7 @@ def getAptList(update: Update, context):
                 update.message.reply_text(package_data.decode())
                 client.close()
         except Exception:
-            update.message.reply_text('Failed to connect') 
+            update.message.reply_text('Failed to connect.') 
         return ConversationHandler.END       
 
 # Функция получения информации о запущенных сервисах.
@@ -380,7 +380,7 @@ def getServices(update: Update, context):
         else:
             update.message.reply_text(service_list_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return    
 
@@ -397,7 +397,7 @@ def getEmails(update: Update, context):
         cursor.close()
         db_connection.close()
     except Exception:
-        update.message.reply_text('Failed DB connect')
+        update.message.reply_text('Failed DB connect.')
 
     return
 
@@ -413,7 +413,7 @@ def getPhoneNumbers(update: Update, context):
         cursor.close()
         db_connection.close()
     except Exception:
-        update.message.reply_text('Failed DB connect')
+        update.message.reply_text('Failed DB connect.')
 
     return
 
@@ -479,18 +479,18 @@ def getReplLogs(update: Update, context):
         else:
             update.message.reply_text(logs_data.decode())
     except Exception:
-        update.message.reply_text('Failed to connect') 
+        update.message.reply_text('Failed to connect.') 
         
     return  
 
-# Основная функция
+# Основная функция.
 def main():
     updater = Updater(TOKEN, use_context=True)
 
-    # Получаем диспетчер для регистрации обработчиков
+    # Получаем диспетчер для регистрации обработчиков.
     dp = updater.dispatcher
 
-    # Обработчики диалога
+    # Обработчики диалога.
     convHandlerFindPhoneNumbers = ConversationHandler(
         entry_points=[CommandHandler('find_phone_number', findPhoneNumbersCommand)],
         states={
@@ -525,7 +525,7 @@ def main():
         fallbacks=[]
     )   
 
-	# Регистрируем обработчики команд
+	# Регистрируем обработчики команд.
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('get_release', getRelease))
     dp.add_handler(CommandHandler('get_uname', getUname))
@@ -548,13 +548,13 @@ def main():
     dp.add_handler(convHandlerGetAptList)
  
 
-	# Регистрируем обработчик текстовых сообщений
+	# Регистрируем обработчик текстовых сообщений.
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, start))
 
-	# Запускаем бота
+	# Запускаем бота.
     updater.start_polling()
 
-	# Останавливаем бота при нажатии Ctrl+C
+	# Останавливаем бота при нажатии Ctrl+C.
     updater.idle()
 
 

@@ -1,0 +1,89 @@
+---
+services:
+  #x-postgres-common:
+  #  &postgres-common
+  #  image: postgres:14-alpine
+  #  user: postgres
+  #  restart: always
+  #  healthcheck:
+  #    test: 'pg_isready -U user --dbname=postgres'
+  #    interval: 10s
+  #    timeout: 5s
+  #    retries: 5
+  
+  postgres_m:
+    #    <<: *postgres-common
+    image: 192.168.1.48:5000/db_image:latest
+    user: postgres
+    restart: always
+    container_name: postgres_m  
+    ports:
+      - 5432:5432
+    environment:
+      #      POSTGRES_USER: user
+      POSTGRES_DB: tgbot
+      POSTGRES_PASSWORD: 1234567890
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication repl_user 0.0.0.0/0 scram-sha-256"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+      - postgres_m:/var/lib/postgresql/data
+
+  postgres_s:
+    #    <<: *postgres-common
+    image: 192.168.1.48:5000/db_repl_image:latest
+    user: postgres
+    restart: always
+    container_name: postgres_s  
+    ports:
+      - 5433:5432
+    environment:
+      PGUSER: repl_user
+      PGPASSWORD: replication123
+    command: |
+      bash -c "
+      rm -rf /var/lib/postgresql/data/* && until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication_slot --host=postgres_m --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    volumes:
+      - postgres_s:/var/lib/postgresql/data
+      
+    depends_on:
+      - postgres_m
+
+  tgbot:
+    image: 192.168.1.48:5000/bot_image:latest
+    container_name: tgbot
+    restart: unless-stopped
+    env_file: ./.env
+    depends_on:
+      - postgres_s
+
+volumes:
+  postgres_m:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /postgres_m
+
+  postgres_s:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /postgres_s
+

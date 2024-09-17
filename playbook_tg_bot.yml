@@ -1,0 +1,135 @@
+- name: Test
+  become: yes   # команда позволяет ansible использовать права root.
+  hosts: all    # playbook запустится для всех хостов в inventory.
+  vars_files:
+    - env.yml
+  tasks:        # ниже начинается список задач. Обратите внимание, tasks во множественном числе. Иначе получим ошибку при выполнении плейбука
+
+### Databases
+    
+  - name: Install postgresql 14 on database hosts.
+    apt:
+      pkg:
+        - postgresql-contrib=14+238
+        - postgresql=14+238
+      update_cache: true
+    when: app is undefined
+# Prepare master
+  - name: Prepare pg-master - copy postgresql config.
+    ansible.builtin.copy:
+      src: postgresql.conf
+      dest: /etc/postgresql/14/main/postgresql.conf
+      mode: 0644
+      owner: postgres
+      group: postgres
+    when: is_master is defined and is_master == 'yes'
+
+  - name: Prepare pg-master - copy pg_hba config.
+    ansible.builtin.template:
+      src: templates/pg_hba.j2
+      dest: /etc/postgresql/14/main/pg_hba.conf
+      mode: 0640
+      owner: postgres
+      group: postgres
+    when: is_master is defined and is_master == 'yes'
+
+  - name: Prepare pg-master - restart postgresql service.
+    ansible.builtin.service:
+      name: postgresql
+      state: restarted
+    when: is_master is defined and is_master == 'yes'
+
+  - name: Prepare pg-master - copy init.sql.
+    ansible.builtin.template:
+      src: templates/init_sql.j2
+      dest: /var/lib/postgresql/init.sql
+      mode: 0400
+      owner: postgres
+      group: postgres
+    when: is_master is defined and is_master == 'yes'      
+
+  - name: Prepare pg-master - apply init.sql.
+    ansible.builtin.shell:
+      cmd:  'su - postgres -c "psql < /var/lib/postgresql/init.sql"'
+    when: is_master is defined and is_master == 'yes'
+
+# Replica
+
+  - name: Prepare pg-replica - stop postgresql service.
+    ansible.builtin.service:
+      name: postgresql
+      state: stopped
+    when: is_master is defined and is_master == 'no'
+
+  - name: Prepare pg-replica - clear data dir.  
+    ansible.builtin.file:
+      state: absent
+      path: /var/lib/postgresql/14/main
+    when: is_master is defined and is_master == 'no'
+
+  - name: Prepare pg_replica - recreate /var/lib/postgresql/14/main.
+    ansible.builtin.file:
+      state: directory
+      path: /var/lib/postgresql/14/main
+      mode: 0700
+      owner: postgres
+      group: postgres
+    when: is_master is defined and is_master == 'no'
+
+  - name: Prepare pg-replica - restore data from pg-master.
+    ansible.builtin.shell: su - postgres -c "PGPASSWORD={{ DB_REPL_PASSWORD }} /usr/bin/pg_basebackup -R -h {{ hostvars['pg-master'].ansible_host }} -U repl_user -D /var/lib/postgresql/14/main -v -P"
+    when: is_master is defined and is_master == 'no'
+
+  - name: Prepare pg-replica - start postgresql service.
+    ansible.builtin.service:
+      name: postgresql
+      state: started
+    when: is_master is defined and is_master == 'no'
+
+### Prepare app
+  - name: Prepare app - install packages.
+    apt:
+      pkg:
+        - python3-pip
+        - libpq-dev
+        - python3-dev  
+      update_cache: true
+    when: app is defined and app == 'tgbot'    
+
+  - name: Prepare app - clone git repo. 
+    ansible.builtin.git:
+      repo: https://github.com/sander2031/tgbot.git
+      dest: /opt/tgbot
+      single_branch: yes
+      version: docker
+    when: app is defined and app == 'tgbot'
+
+  - name: Prepare app - install env.
+    ansible.builtin.template:
+       src: templates/env.j2
+       dest: /opt/tgbot/bot/.env
+    when: app is defined and app == 'tgbot'
+
+  - name: Prepare app - install pip requirements.
+    ansible.builtin.pip: 
+      requirements: /opt/tgbot/bot/requirements.txt
+      umask: '0022'   
+    when: app is defined and app == 'tgbot'
+
+  - name: Prepare app - setup service tgbot.
+    ansible.builtin.template:
+       src: templates/tgbot.service
+       dest:  /etc/systemd/system/tgbot.service
+    when: app is defined and app == 'tgbot'
+
+  - name: Prepare app - systemd reload configuration.
+    ansible.builtin.systemd_service:
+      daemon_reload: true
+    when: app is defined and app == 'tgbot'
+
+  - name: Prepare app - restart tgbot service.
+    ansible.builtin.systemd_service:
+      name:  tgbot
+      state: restarted
+    when: app is defined and app == 'tgbot'
+        

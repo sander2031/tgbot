@@ -1,0 +1,7 @@
+[databases]
+pg-master ansible_port=22 ansible_host=192.168.1.97 ansible_user=sander ansible_password=FomKFqvfz3ayLPRLkRvrm3i3qF3fUgog ansible_sudo_pass=FomKFqvfz3ayLPRLkRvrm3i3qF3fUgog  ansible_ssh_common_args='-o StrictHostKeyChecking=no' is_master=yes 
+pg-replica ansible_port=22 ansible_host=192.168.1.233 ansible_user=sander ansible_password=kpK9jPsLhEAYRoqagRNNrf3kfEKzrKXX ansible_sudo_pass=kpK9jPsLhEAYRoqagRNNrf3kfEKzrKXX ansible_ssh_common_args='-o StrictHostKeyChecking=no' is_master=no
+
+[app]
+app ansible_port=22 ansible_host=192.168.1.90 ansible_user=sander ansible_password=EhL3hteMAf47MgEXMzLsPemWeiwdqvvY ansible_sudo_pass=EhL3hteMAf47MgEXMzLsPemWeiwdqvvY ansible_ssh_common_args='-o StrictHostKeyChecking=no' app=tgbot
+
